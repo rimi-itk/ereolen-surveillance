@@ -2,7 +2,7 @@ easy_admin:
     entities:
       CarouselClash:
           class: App\Entity\CarouselClash
-          disabled_actions: [new, edit, delete]
+          disabled_actions: [new, edit]
 
           list:
               actions: [show]
