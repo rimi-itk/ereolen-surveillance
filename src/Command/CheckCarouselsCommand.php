@@ -105,7 +105,6 @@ class CheckCarouselsCommand extends Command
                             ->setName($name)
                             ->setData([
                                 'url' => $url,
-                                'carousel' => $headerElement,
                                 'current' => $current,
                                 'previous' => $previous,
                                 'diff' => array_diff($current, $previous),
