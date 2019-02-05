@@ -1,7 +1,14 @@
 <?php
 
-namespace App\Controller;
+/*
+ * This file is part of ereolen-surveillance.
+ *
+ * (c) 2019 ITK Development
+ *
+ * This source file is subject to the MIT license.
+ */
 
+namespace App\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Routing\Annotation\Route;

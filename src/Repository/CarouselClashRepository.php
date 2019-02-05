@@ -1,5 +1,13 @@
 <?php
 
+/*
+ * This file is part of ereolen-surveillance.
+ *
+ * (c) 2019 ITK Development
+ *
+ * This source file is subject to the MIT license.
+ */
+
 namespace App\Repository;
 
 use App\Entity\CarouselClash;
@@ -7,8 +15,8 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Symfony\Bridge\Doctrine\RegistryInterface;
 
 /**
- * @method CarouselClash|null find($id, $lockMode = null, $lockVersion = null)
- * @method CarouselClash|null findOneBy(array $criteria, array $orderBy = null)
+ * @method null|CarouselClash find($id, $lockMode = null, $lockVersion = null)
+ * @method null|CarouselClash findOneBy(array $criteria, array $orderBy = null)
  * @method CarouselClash[]    findAll()
  * @method CarouselClash[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
  */

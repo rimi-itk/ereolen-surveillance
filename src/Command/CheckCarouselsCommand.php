@@ -1,9 +1,16 @@
 <?php
 
+/*
+ * This file is part of ereolen-surveillance.
+ *
+ * (c) 2019 ITK Development
+ *
+ * This source file is subject to the MIT license.
+ */
+
 namespace App\Command;
 
 use App\Entity\CarouselClash;
-use App\Repository\CarouselClashRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use GuzzleHttp\Client;
 use Symfony\Component\Console\Command\Command;
@@ -13,13 +20,13 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class CheckCarouselsCommand extends Command
 {
-    /** @var  OutputInterface */
+    /** @var OutputInterface */
     private $output;
 
-    /** @var EntityManagerInterface  */
+    /** @var EntityManagerInterface */
     private $entityManager;
 
-    /** @var \Swift_Mailer  */
+    /** @var \Swift_Mailer */
     private $mailer;
 
     public function __construct(EntityManagerInterface $entityManager, \Swift_Mailer $mailer)
@@ -32,9 +39,11 @@ class CheckCarouselsCommand extends Command
     public function configure()
     {
         $this->setName('app:check-carousels')
-          ->addArgument('url',
+            ->addArgument(
+              'url',
             InputArgument::REQUIRED | InputArgument::IS_ARRAY,
-            'The url to check');
+            'The url to check'
+          );
     }
 
     public function execute(InputInterface $input, OutputInterface $output)
@@ -59,14 +68,19 @@ class CheckCarouselsCommand extends Command
         $expression = '//div[contains(concat(" ", normalize-space(@class), " "), " ding-carousel ")]';
         $carousels = $xpath->query($expression);
         foreach ($carousels as $carousel) {
-            $header = preg_replace('/\s+/', ' ', trim($xpath->query('descendant::h2', $carousel)->item(0)->textContent));
+            $headerElement = $this->getElementByClassName($xpath, 'carousel__header', $carousel, 'descendant::h2');
+            if ($more = $this->getElementByClassName($xpath, 'carousel__more-link', $headerElement)) {
+                $more->parentNode->removeChild($more);
+            }
+            $name = $headerElement ? trim($headerElement->textContent) : 'carousel';
+
             $expression = 'descendant::li[contains(concat(" ", normalize-space(@class), " "), " ding-carousel-item ")]';
             $items = $xpath->query($expression, $carousel);
 
             $stuff = [];
 
-            $this->output->writeln($header);
-            $this->output->writeln('#items: '. $items->length);
+            $this->output->writeln($name);
+            $this->output->writeln('#items: '.$items->length);
             foreach ($items as $item) {
                 $icon = $this->getElementByClassName($xpath, 'icon', $item);
                 $type = preg_replace('/icon /', '', $this->getAttribute($icon, 'class'));
@@ -88,10 +102,10 @@ class CheckCarouselsCommand extends Command
                         $clash = (new CarouselClash())
                             ->setCreatedAt(new \DateTime())
                             ->setUrl($url)
-                            ->setName($header)
+                            ->setName($name)
                             ->setData([
                                 'url' => $url,
-                                'carousel' => $header,
+                                'carousel' => $headerElement,
                                 'current' => $current,
                                 'previous' => $previous,
                                 'diff' => array_diff($current, $previous),
@@ -101,11 +115,11 @@ class CheckCarouselsCommand extends Command
                         $this->entityManager->flush();
 
                         $this->output->writeln('<error>'
-                            .'Clash: '.\json_encode($clash->getData(), JSON_PRETTY_PRINT)
+                            .'Clash: '.json_encode($clash->getData(), JSON_PRETTY_PRINT)
                             .'</error>');
+                    } else {
+                        $stuff[$key] = $data;
                     }
-
-                    $stuff[$key] = $data;
                 }
             }
             $this->output->writeln('');
@@ -119,17 +133,30 @@ class CheckCarouselsCommand extends Command
         return 1 === $result->length ? $result->item(0) : null;
     }
 
-    private function getElementByClassName($xpath, $className, $context = null)
+    /**
+     * @param \DOMXPath     $xpath
+     * @param string        $className
+     * @param null|\DOMNode $context
+     *
+     * @return null|\DOMNode
+     */
+    private function getElementByClassName(\DOMXPath $xpath, string $className, \DOMNode $context = null, string $expression = 'descendant::*')
     {
-        $result = $xpath->query('descendant::*[contains(concat(" ", normalize-space(@class), " "), " '.$className.' ")]', $context);
+        $result = $xpath->query($expression.'[contains(concat(" ", normalize-space(@class), " "), " '.$className.' ")]', $context);
 
         return 1 === $result->length ? $result->item(0) : null;
     }
 
-    private function getAttribute($element, $attributeName, $default = null)
+    /**
+     * @param \DOMElement $element
+     * @param string      $attributeName
+     * @param null        $default
+     *
+     * @return null|string
+     */
+    private function getAttribute(?\DOMElement $element, string $attributeName, $default = null)
     {
         return null !== $element ? $element->getAttribute($attributeName) : null;
-
     }
 
     private function getTextContent($element)
@@ -141,10 +168,10 @@ class CheckCarouselsCommand extends Command
     {
         if (0 === strpos($url, 'file://')) {
             return file_get_contents($url);
-        } else {
-            $client = new Client();
-            $response = $client->get($url);
-            return (string)$response->getBody();
         }
+        $client = new Client();
+        $response = $client->get($url);
+
+        return (string) $response->getBody();
     }
 }
