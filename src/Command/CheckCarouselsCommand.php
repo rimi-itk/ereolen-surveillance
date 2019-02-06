@@ -95,7 +95,7 @@ class CheckCarouselsCommand extends Command
             $this->output->writeln($name);
             $this->output->writeln('#items: '.$items->length);
 
-            foreach ($items as $item) {
+            foreach ($items as $index => $item) {
                 $icon = $this->getElementByClassName($xpath, 'icon', $item);
                 $type = preg_replace('/icon /', '', $this->getAttribute($icon, 'class'));
 
@@ -117,7 +117,10 @@ class CheckCarouselsCommand extends Command
                     )),
                     'url' => $this->getAttribute($this->getElement($xpath, 'descendant::a', $item), 'href'),
                     'type' => $type,
+                    'index' => $index,
                 ];
+
+                $this->output->writeln(urldecode($data['url']));
 
                 if ($data['title'] && $data['author'] && $data['type']) {
                     $key = implode('||||', [$data['title'], $data['author'], $data['type']]);
