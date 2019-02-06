@@ -181,6 +181,12 @@ class CheckCarouselsCommand extends Command
                 $item->parentNode->removeChild($item);
             }
             $carousel->appendChild($carousel->ownerDocument->importNode($doc->documentElement->firstChild->firstChild, true));
+
+            // Remove placeholder items.
+            $placeholders = $this->getElementsByClassName($xpath, 'placeholder', $carousel);
+            foreach ($placeholders as $placeholder) {
+                $placeholder->parentNode->removeChild($placeholder);
+            }
         }
     }
 
@@ -196,11 +202,23 @@ class CheckCarouselsCommand extends Command
      * @param string        $className
      * @param null|\DOMNode $context
      *
+     * @return \DOMNodeList
+     */
+    private function getElementsByClassName(\DOMXPath $xpath, string $className, \DOMNode $context = null, string $expression = 'descendant::*')
+    {
+        return $xpath->query($expression.'[contains(concat(" ", normalize-space(@class), " "), " '.$className.' ")]', $context);
+    }
+
+    /**
+     * @param \DOMXPath     $xpath
+     * @param string        $className
+     * @param null|\DOMNode $context
+     *
      * @return null|\DOMNode
      */
     private function getElementByClassName(\DOMXPath $xpath, string $className, \DOMNode $context = null, string $expression = 'descendant::*')
     {
-        $result = $xpath->query($expression.'[contains(concat(" ", normalize-space(@class), " "), " '.$className.' ")]', $context);
+        $result = $this->getElementsByClassName($xpath, $className, $context, $expression);
 
         return 1 === $result->length ? $result->item(0) : null;
     }
