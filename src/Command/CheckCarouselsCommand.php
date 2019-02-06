@@ -171,7 +171,7 @@ class CheckCarouselsCommand extends Command
             foreach ($list as $item) {
                 $item->parentNode->removeChild($item);
             }
-            $carousel->appendChild($carousel->ownerDocument->importNode($doc->documentElement, true));
+            $carousel->appendChild($carousel->ownerDocument->importNode($doc->documentElement->firstChild->firstChild, true));
         }
     }
 
