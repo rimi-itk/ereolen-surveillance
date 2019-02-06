@@ -13,6 +13,8 @@ namespace App\Command;
 use App\Entity\CarouselClash;
 use Doctrine\ORM\EntityManagerInterface;
 use GuzzleHttp\Client;
+use League\Uri\Http;
+use League\Uri\Modifiers\Resolve;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -74,27 +76,43 @@ class CheckCarouselsCommand extends Command
             }
             $name = $headerElement ? trim($headerElement->textContent) : 'carousel';
 
+            $stuff = [];
+
+            $this->loadCaruselItems($carousel, $url, $xpath);
+
             $expression = 'descendant::li[contains(concat(" ", normalize-space(@class), " "), " ding-carousel-item ")]';
             $items = $xpath->query($expression, $carousel);
 
-            $stuff = [];
-
             $this->output->writeln($name);
             $this->output->writeln('#items: '.$items->length);
+
             foreach ($items as $item) {
                 $icon = $this->getElementByClassName($xpath, 'icon', $item);
                 $type = preg_replace('/icon /', '', $this->getAttribute($icon, 'class'));
 
                 $data = [
-                    'language' => $this->getTextContent($this->getElementByClassName($xpath, 'field-name-ting-details-language', $item)),
-                    'title' => $this->getTextContent($this->getElementByClassName($xpath, 'field-name-ting-title', $item)),
-                    'author' => $this->getTextContent($this->getElementByClassName($xpath, 'field-name-ting-author', $item)),
+                    'language' => $this->getTextContent($this->getElementByClassName(
+                        $xpath,
+                        'field-name-ting-details-language',
+                        $item
+                    )),
+                    'title' => $this->getTextContent($this->getElementByClassName(
+                        $xpath,
+                        'field-name-ting-title',
+                        $item
+                    )),
+                    'author' => $this->getTextContent($this->getElementByClassName(
+                        $xpath,
+                        'field-name-ting-author',
+                        $item
+                    )),
                     'url' => $this->getAttribute($this->getElement($xpath, 'descendant::a', $item), 'href'),
                     'type' => $type,
                 ];
 
                 if ($data['title'] && $data['author'] && $data['type']) {
                     $key = implode('||||', [$data['title'], $data['author'], $data['type']]);
+
                     if (isset($stuff[$key])) {
                         $current = $data;
                         $previous = $stuff[$key];
@@ -114,14 +132,46 @@ class CheckCarouselsCommand extends Command
                         $this->entityManager->flush();
 
                         $this->output->writeln('<error>'
-                            .'Clash: '.json_encode($clash->getData(), JSON_PRETTY_PRINT)
-                            .'</error>');
+                             .'Clash: '.json_encode($clash->getData(), JSON_PRETTY_PRINT)
+                             .'</error>');
                     } else {
                         $stuff[$key] = $data;
                     }
                 }
             }
+
             $this->output->writeln('');
+        }
+    }
+
+    private function loadCaruselItems(\DOMElement $carousel, string $url, \DOMXPath $xpath)
+    {
+        $dataPath = $this->getAttribute($carousel, 'data-path');
+        if (null !== $dataPath && preg_match('/^reol_field_carousel/', $dataPath)) {
+            $resolver = new Resolve(Http::createFromString($url));
+            $offset = 0;
+            $content = '';
+            while ($offset > -1 && $offset < 4 * 8) {
+                $uri = Http::createFromString('/'.ltrim($dataPath, '/').'/'.$offset);
+                $dataUrl = (string) $resolver->process($uri);
+
+                $client = new Client();
+                $response = $client->get($dataUrl);
+                $data = json_decode((string) $response->getBody());
+
+                $content .= $data->content;
+
+                $offset = $data->offset ?? -1;
+            }
+
+            $doc = new \DOMDocument();
+            @$doc->loadHTML('<ol>'.$content.'</ol>');
+
+            $list = $xpath->query('descendant::ul', $carousel);
+            foreach ($list as $item) {
+                $item->parentNode->removeChild($item);
+            }
+            $carousel->appendChild($carousel->ownerDocument->importNode($doc->documentElement, true));
         }
     }
 
