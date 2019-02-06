@@ -18,6 +18,7 @@ use League\Uri\Modifiers\Resolve;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class CheckCarouselsCommand extends Command
@@ -42,10 +43,11 @@ class CheckCarouselsCommand extends Command
     {
         $this->setName('app:check-carousels')
             ->addArgument(
-              'url',
-            InputArgument::REQUIRED | InputArgument::IS_ARRAY,
-            'The url to check'
-          );
+                'url',
+                InputArgument::REQUIRED | InputArgument::IS_ARRAY,
+                'The url to check'
+            )
+            ->addOption('name-filter', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Filter caruosel by name');
     }
 
     public function execute(InputInterface $input, OutputInterface $output)
@@ -53,13 +55,16 @@ class CheckCarouselsCommand extends Command
         $this->output = $output;
 
         $urls = $input->getArgument('url');
+        $filters = [
+            'name' => $input->getOption('name-filter'),
+        ];
 
         foreach ($urls as $url) {
-            $this->checkCarousels($url);
+            $this->checkCarousels($url, $filters);
         }
     }
 
-    private function checkCarousels(string $url)
+    private function checkCarousels(string $url, array $filters = [])
     {
         $content = $this->getContent($url);
 
@@ -75,6 +80,10 @@ class CheckCarouselsCommand extends Command
                 $more->parentNode->removeChild($more);
             }
             $name = $headerElement ? trim($headerElement->textContent) : 'carousel';
+
+            if (!empty($filters['name']) && !\in_array($name, $filters['name'], true)) {
+                continue;
+            }
 
             $stuff = [];
 
