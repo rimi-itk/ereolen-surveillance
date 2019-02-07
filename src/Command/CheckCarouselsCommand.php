@@ -71,6 +71,9 @@ class CheckCarouselsCommand extends Command
         $doc = new \DOMDocument();
         @$doc->loadHTML($content);
 
+        // Remove user info from url.
+        $cleanUrl = (string) Http::createFromString($url)->withUserInfo(null);
+
         $xpath = new \DOMXPath($doc);
         $expression = '//div[contains(concat(" ", normalize-space(@class), " "), " ding-carousel ")]';
         $carousels = $xpath->query($expression);
@@ -120,7 +123,7 @@ class CheckCarouselsCommand extends Command
                     'index' => $index,
                 ];
 
-                $this->output->writeln(urldecode($data['url']));
+                $this->output->writeln(sprintf('% 3d %s', $index, urldecode($data['url'])));
 
                 if ($data['title'] && $data['author'] && $data['type']) {
                     $key = implode('||||', [$data['title'], $data['author'], $data['type']]);
@@ -131,10 +134,11 @@ class CheckCarouselsCommand extends Command
 
                         $clash = (new CarouselClash())
                             ->setCreatedAt(new \DateTime())
-                            ->setUrl($url)
+                            ->setUrl($cleanUrl)
                             ->setName($name)
                             ->setData([
-                                'url' => $url,
+                                'url' => $cleanUrl,
+                                'data-path' => $this->getAttribute($carousel, 'data-path'),
                                 'current' => $current,
                                 'previous' => $previous,
                                 'diff' => array_diff($current, $previous),
