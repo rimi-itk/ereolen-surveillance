@@ -88,6 +88,8 @@ class CheckCarouselsCommand extends Command
                 continue;
             }
 
+            $this->output->writeln($name);
+
             $stuff = [];
 
             $this->loadCaruselItems($carousel, $url, $xpath);
@@ -95,12 +97,17 @@ class CheckCarouselsCommand extends Command
             $expression = 'descendant::li[contains(concat(" ", normalize-space(@class), " "), " ding-carousel-item ")]';
             $items = $xpath->query($expression, $carousel);
 
-            $this->output->writeln($name);
             $this->output->writeln('#items: '.$items->length);
 
             foreach ($items as $index => $item) {
                 $icon = $this->getElementByClassName($xpath, 'icon', $item);
                 $type = preg_replace('/icon /', '', $this->getAttribute($icon, 'class'));
+
+                if (empty($type)) {
+                  // DDB CMS
+                  $el = $this->getElementByClassName($xpath, 'availability', $item);
+                  $type = null !== $el ? $this->getTextContent($el) : null;
+                }
 
                 $data = [
                     'language' => $this->getTextContent($this->getElementByClassName(
@@ -163,13 +170,14 @@ class CheckCarouselsCommand extends Command
     private function loadCaruselItems(\DOMElement $carousel, string $url, \DOMXPath $xpath)
     {
         $dataPath = $this->getAttribute($carousel, 'data-path');
-        if (null !== $dataPath && preg_match('/^reol_field_carousel/', $dataPath)) {
+        if (null !== $dataPath && preg_match('/^(reol_field_carousel|ting_search_carousel)/', $dataPath)) {
             $resolver = new Resolve(Http::createFromString($url));
             $offset = 0;
             $content = '';
             while ($offset > -1 && $offset < 4 * 8) {
                 $uri = Http::createFromString('/'.ltrim($dataPath, '/').'/'.$offset);
                 $dataUrl = (string) $resolver->process($uri);
+                $this->output->writeln($dataUrl);
 
                 $client = new Client();
                 $response = $client->get($dataUrl);
@@ -201,7 +209,7 @@ class CheckCarouselsCommand extends Command
     {
         $result = $xpath->query($expression, $context);
 
-        return 1 === $result->length ? $result->item(0) : null;
+        return 0 < $result->length ? $result->item(0) : null;
     }
 
     /**
@@ -227,7 +235,7 @@ class CheckCarouselsCommand extends Command
     {
         $result = $this->getElementsByClassName($xpath, $className, $context, $expression);
 
-        return 1 === $result->length ? $result->item(0) : null;
+        return 0 < $result->length ? $result->item(0) : null;
     }
 
     /**
